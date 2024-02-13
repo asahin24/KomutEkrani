@@ -14,7 +14,7 @@ class KomutEkrani(ttk.Frame):
 
     def init_ui(self):
         self.add_button = tk.Button(self, text="Buton Ekle", command=self.add_new_button).grid(row=1, column=1)
-        self.add_button.pack()
+        #self.add_button.pack()
 
         self.right_click_menu = Menu(self, tearoff=0)
         self.right_click_menu.add_command(label="Komutları Düzenle", command=self.edit_commands)
