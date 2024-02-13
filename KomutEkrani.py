@@ -1,24 +1,28 @@
+import socket
 import tkinter as tk
+from tkinter import ttk
 from tkinter import colorchooser, Menu, Toplevel, simpledialog
 from tkinter.scrolledtext import ScrolledText
 
-class KomutEkrani:
-    def __init__(self, master):
+class KomutEkrani(ttk.Frame):
+    def __init__(self, master=None, **kwargs):
+        super().__init__(master, **kwargs)
         self.master = master
-        master.title("Komut Ekranı")
-
         self.buttons = {}
         self.button_commands = {}
+        self.init_ui()
 
-        self.add_button = tk.Button(master, text="Buton Ekle", command=self.add_new_button)
+    def init_ui(self):
+        self.add_button = tk.Button(self, text="Buton Ekle", command=self.add_new_button).grid(row=1, column=1)
         self.add_button.pack()
 
-        self.right_click_menu = Menu(master, tearoff=0)
+        self.right_click_menu = Menu(self, tearoff=0)
         self.right_click_menu.add_command(label="Komutları Düzenle", command=self.edit_commands)
         self.right_click_menu.add_command(label="Sil", command=self.delete_button)
         self.right_click_menu.add_command(label="Renk Değiştir", command=self.change_color)
 
         self.current_button = None
+
 
     def add_new_button(self):
         button_text = simpledialog.askstring("Buton Ekleme", "Buton Adı:", parent=self.master)
@@ -26,12 +30,20 @@ class KomutEkrani:
             self.create_button(button_text)
             self.button_commands[button_text] = ""  # Initialize with empty commands
 
-    def send_commands(self, button_text):
+    def send_commands(self, button_text, ip='127.0.0.1', port=9998):
         commands = self.button_commands.get(button_text, "")
         if commands:  # Check if there are commands to send
             for command in commands.split('\n'):
                 print(f"Sending command: {command}")
                 # Integrate your logic here to send each command over Ethernet
+                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+                    try:
+                        sock.sendto(command.encode(), (ip, port))
+                        print(f"Message '{command}' sent to {ip}:{port}" + '\n')
+                    except Exception as e:
+                        print(f"Error sending command: {e}")
+
+
 
     def show_right_click_menu(self, event):
         try:
@@ -92,6 +104,19 @@ class KomutEkrani:
         y = widget.winfo_y() - self.drag_start_y + event.y
         widget.place(x=x, y=y)
 
+        # Assuming frame_width and frame_height are the dimensions of the frame
+        # and widget_width, widget_height are the dimensions of the widget
+        frame_width = widget.master.winfo_width()
+        frame_height = widget.master.winfo_height()
+        widget_width = widget.winfo_width()
+        widget_height = widget.winfo_height()
+
+        # Adjust x and y to prevent the widget from moving outside the frame
+        x = max(0, min(x, frame_width - widget_width))
+        y = max(0, min(y, frame_height - widget_height))
+
+        widget.place(x=x, y=y)
+
     def stop_drag(self, event, button_text):
         if not self.dragged:
             self.send_commands(button_text)
@@ -99,5 +124,9 @@ class KomutEkrani:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = KomutEkrani(root)
+    root.title("CLI Komutlari")
+    
+    komut_ekrani_frame = KomutEkrani(master=root)
+    komut_ekrani_frame.pack(expand=True, fill="both")
+
     root.mainloop()
