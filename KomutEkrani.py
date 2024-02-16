@@ -3,6 +3,8 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import colorchooser, Menu, Toplevel, simpledialog
 from tkinter.scrolledtext import ScrolledText
+import json
+import atexit
 
 class KomutEkrani(ttk.Frame):
     def __init__(self, master=None, **kwargs):
@@ -10,6 +12,8 @@ class KomutEkrani(ttk.Frame):
         self.master = master
         self.buttons = {}
         self.button_commands = {}
+        atexit.register(self.save_buttons)
+        self.load_buttons()
         self.init_ui()
 
     def init_ui(self):
@@ -19,7 +23,8 @@ class KomutEkrani(ttk.Frame):
         self.right_click_menu = Menu(self, tearoff=0)
         self.right_click_menu.add_command(label="Komutları Düzenle", command=self.edit_commands)
         self.right_click_menu.add_command(label="Sil", command=self.delete_button)
-        self.right_click_menu.add_command(label="Renk Değiştir", command=self.change_color)
+        self.right_click_menu.add_command(label="Arka Plan Rengini Değiştir", command=self.change_bg)
+        self.right_click_menu.add_command(label="Yazı Rengini Değiştir", command=self.change_fg)
 
         self.current_button = None
 
@@ -29,6 +34,8 @@ class KomutEkrani(ttk.Frame):
         if button_text and button_text not in self.buttons:
             self.create_button(button_text)
             self.button_commands[button_text] = ""  # Initialize with empty commands
+            self.save_buttons()
+
 
     def send_commands(self, button_text, ip='127.0.0.1', port=9998):
         commands = self.button_commands.get(button_text, "")
@@ -66,6 +73,7 @@ class KomutEkrani(ttk.Frame):
         def save_commands():
             self.button_commands[self.current_button] = text_area.get("1.0", tk.END).strip()
             editor.destroy()
+            self.save_buttons()
 
         save_button = tk.Button(editor, text="Kaydet", command=save_commands)
         save_button.pack(pady=5)
@@ -84,12 +92,21 @@ class KomutEkrani(ttk.Frame):
             self.buttons[self.current_button].destroy()
             del self.buttons[self.current_button]
             del self.button_commands[self.current_button]
+            self.save_buttons()
 
-    def change_color(self):
+    def change_fg(self):
+        if self.current_button:
+            new_color = colorchooser.askcolor(title ="Renk Seçin")[1]
+            if new_color:
+                self.buttons[self.current_button].config(fg=new_color)
+                self.save_buttons()
+    
+    def change_bg(self):
         if self.current_button:
             new_color = colorchooser.askcolor(title ="Renk Seçin")[1]
             if new_color:
                 self.buttons[self.current_button].config(bg=new_color)
+                self.save_buttons()
 
     # Drag and drop functionality
     def start_drag(self, event):
@@ -121,6 +138,34 @@ class KomutEkrani(ttk.Frame):
         if not self.dragged:
             self.send_commands(button_text)
         self.dragged = False
+
+    def load_buttons(self):
+        try:
+            # Load the buttons from the file
+            with open('buttons.json', 'r') as infile:
+                buttons_data = json.load(infile)
+            # Create buttons based on loaded data
+            for key, btn_data in buttons_data.items():
+                self.load_button(btn_data["text"], btn_data["commands"], btn_data["colour"])
+        except FileNotFoundError:
+            pass  # If the file does not exist, simply continue without loading buttons
+
+    def load_button(self, btn_text, btn_command,btn_colour):
+        new_button = tk.Button(self.master, text=btn_text, bg=btn_colour)
+        new_button.bind("<Button-3>", self.show_right_click_menu)
+        new_button.bind("<Button-1>", self.start_drag)
+        new_button.bind("<B1-Motion>", self.drag)
+        new_button.bind("<ButtonRelease-1>", lambda event, bt=btn_text: self.stop_drag(event, bt))
+        self.button_commands[btn_text] = btn_command
+        new_button.pack()
+        self.buttons[btn_text] = new_button
+
+    def save_buttons(self):
+        # Prepare the data to be saved
+        buttons_data = {key: {"text": btn.cget("text"), "commands": self.button_commands[key], "colour": btn.cget("bg")} for key, btn in self.buttons.items()}
+        # Save to a file
+        with open('buttons.json', 'w') as outfile:
+            json.dump(buttons_data, outfile)
 
 if __name__ == "__main__":
     root = tk.Tk()
