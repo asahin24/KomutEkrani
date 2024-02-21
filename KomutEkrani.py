@@ -4,7 +4,7 @@ from tkinter import ttk
 from tkinter import colorchooser, Menu, Toplevel, simpledialog
 from tkinter.scrolledtext import ScrolledText
 import json
-import atexit
+
 
 class KomutEkrani(ttk.Frame):
     def __init__(self, master, **kwargs):
@@ -12,20 +12,22 @@ class KomutEkrani(ttk.Frame):
         self.master = master
         self.buttons = {}
         self.button_commands = {}
+        self.stil = ttk.Style()
         self.init_ui()
 
-    def init_ui(self):
-        self.add_button = tk.Button(self, text="Buton Ekle", command=self.yeni_buton_ekle)
-        self.add_button.place(x=0, y=0)
 
-        self.cmd_btn_right_click = Menu(self, tearoff=0)
-        self.cmd_btn_right_click.add_command(label="Komutları Düzenle", command=self.komutlari_duzenle)
-        self.cmd_btn_right_click.add_command(label="Sil", command=self.butonu_sil)
-        self.cmd_btn_right_click.add_command(label="Arka Plan Rengini Değiştir", command=self.arka_plan_degistir)
-        self.cmd_btn_right_click.add_command(label="Yazı Rengini Değiştir", command=self.yazi_rengi_degistir)
+    def init_ui(self):
+        # Buton Ekleme butonunu ekle
+        self.add_button = tk.Button(self, text="Buton Ekle", command=self.yeni_buton_ekle)
+        self.add_button.place(x=1, y=1)
+
+        self.sag_tik_komutlarini_olustur()
 
         self.butonlari_yukle()
 
+
+
+        # bu degisken secili butonu takip etmek icin. Islem hangi buton uzerinde uygulanacak.
         self.current_button = None
 
 
@@ -55,11 +57,11 @@ class KomutEkrani(ttk.Frame):
     def komut_butonu_sag_tik_menusu_goster(self, event):
         try:
             self.current_button = event.widget.cget("text")
-            self.cmd_btn_right_click.tk_popup(event.x_root, event.y_root)
+            self.buton_sag_tik.tk_popup(event.x_root, event.y_root)
         finally:
-            self.cmd_btn_right_click.grab_release()
+            self.buton_sag_tik.grab_release()
 
-    def komutlari_duzenle(self):
+    def buton_komutlarini_duzenle(self):
         if self.current_button:
             self.komut_duzenleyiciyi_goster()
 
@@ -94,14 +96,14 @@ class KomutEkrani(ttk.Frame):
             del self.button_commands[self.current_button]
             self.butonlari_kaydet()
 
-    def yazi_rengi_degistir(self):
+    def buton_yazi_rengi_degistir(self):
         if self.current_button:
             new_color = colorchooser.askcolor(title ="Renk Seçin")[1]
             if new_color:
                 self.buttons[self.current_button].config(fg=new_color)
                 self.butonlari_kaydet()
     
-    def arka_plan_degistir(self):
+    def buton_arka_plan_degistir(self):
         if self.current_button:
             new_color = colorchooser.askcolor(title ="Renk Seçin")[1]
             if new_color:
@@ -121,14 +123,12 @@ class KomutEkrani(ttk.Frame):
         y = widget.winfo_y() - self.drag_start_y + event.y
         widget.place(x=x, y=y)
 
-        # Assuming frame_width and frame_height are the dimensions of the frame
-        # and widget_width, widget_height are the dimensions of the widget
-        frame_width = widget.master.winfo_width()
-        frame_height = widget.master.winfo_height()
+        # Kullanici butonu cerceve disina cikaramasin
+        frame_width = self.winfo_width()
+        frame_height = self.winfo_height()
         widget_width = widget.winfo_width()
         widget_height = widget.winfo_height()
 
-        # Adjust x and y to prevent the widget from moving outside the frame
         x = max(0, min(x, frame_width - widget_width))
         y = max(0, min(y, frame_height - widget_height))
 
@@ -143,7 +143,7 @@ class KomutEkrani(ttk.Frame):
     def butonlari_yukle(self):
         try:
             # Load the buttons from the file
-            with open('buttons.json', 'r') as infile:
+            with open('butonlar.json', 'r') as infile:
                 buttons_data = json.load(infile)
             # Create buttons based on loaded data
             for key, btn_data in buttons_data.items():
@@ -156,7 +156,7 @@ class KomutEkrani(ttk.Frame):
         yeni_buton.bind("<Button-3>", self.komut_butonu_sag_tik_menusu_goster)
         yeni_buton.bind("<Button-1>", self.suruklemeye_basla)
         yeni_buton.bind("<B1-Motion>", self.surukle)
-        yeni_buton.bind("<ButtonRelease-1>", lambda event, bt=btn_data["text"]: self.suruklemeyi_bitir(event, bt))
+        yeni_buton.bind("<ButtonRelease-1>", lambda bt=btn_data["text"]: self.suruklemeyi_bitir(bt))
         self.button_commands[btn_data["text"]] = btn_data["commands"]
         yeni_buton.place(x=btn_data["x_coord"], y= btn_data["y_coord"])
         self.buttons[btn_data["text"]] = yeni_buton
@@ -170,8 +170,18 @@ class KomutEkrani(ttk.Frame):
                               "x_coord": btn.winfo_x(),\
                               "y_coord": btn.winfo_y()} for key, btn in self.buttons.items()}
         # Save to a file
-        with open('buttons.json', 'w') as outfile:
+        with open('butonlar.json', 'w') as outfile:
             json.dump(buttons_data, outfile)
+
+
+    def sag_tik_komutlarini_olustur(self):
+        # Buton sag tik komutlari
+        self.buton_sag_tik = Menu(self, tearoff=0)
+        self.buton_sag_tik.add_command(label="Komutları Düzenle", command=self.buton_komutlarini_duzenle)
+        self.buton_sag_tik.add_command(label="Sil", command=self.butonu_sil)
+        self.buton_sag_tik.add_command(label="Arka Plan Rengini Değiştir", command=self.buton_arka_plan_degistir)
+        self.buton_sag_tik.add_command(label="Yazı Rengini Değiştir", command=self.buton_yazi_rengi_degistir)
+
 
 if __name__ == "__main__":
 
@@ -184,7 +194,7 @@ if __name__ == "__main__":
     root = tk.Tk()
     root.title("CLI Komutlari")
     root.geometry("600x400")
-    
+   
     komut_ekrani_frame = KomutEkrani(master=root)
     komut_ekrani_frame.place(x=0, y=0, width=600, height=400)
 
